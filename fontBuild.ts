@@ -5,13 +5,25 @@ import { parseGlyph } from "@/lib/fontTranspiler/glyphParser";
 import { generateConditionedPointCloud } from "@/lib/fontTranspiler/conditionalIFS";
 import { buildCymaglyphGlyphPath, toSvgPathData } from "@/lib/fontTranspiler/vectorizeGlyph";
 import { glyphSignatureToSacredParams } from "@/lib/fontTranspiler/signatureToSacredParams";
-import type { FontTranspileBuildRequest, GlyphCymaglyphArtifact } from "@/lib/fontTranspiler/types";
+import { buildGlyphPathFromDSP } from "./densityContourEngine";
+import { exportFont, validateFontForInstallation } from "./fontExporter";
+import type { SignalKernelParams } from "./coreSignalKernel";
+import type { FontTranspileBuildRequest, GlyphCymaglyphArtifact, DspFontExportOptions } from "@/lib/fontTranspiler/types";
 
 export interface FontBuildOutput {
   font: opentype.Font;
   artifacts: GlyphCymaglyphArtifact[];
   hash: string;
   buffer: ArrayBuffer;
+}
+
+export interface StrokeBasedFontBuildOutput {
+  font: opentype.Font;
+  buffer: ArrayBuffer;
+  format: 'ttf' | 'otf';
+  fileName: string;
+  validation: { valid: boolean; errors: string[]; warnings: string[] };
+  metadata: Record<string, string>;
 }
 
 function makeNotdefGlyph(unitsPerEm: number): opentype.Glyph {
@@ -105,4 +117,91 @@ export function downloadBuiltFont(font: opentype.Font, fileName: string, mimeTyp
   a.download = fileName;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+/**
+ * Build font using stroke-based DSP generation (new method)
+ * Replaces point cloud displacement with density contour extraction
+ */
+export async function buildStrokeBasedCymaglyphFont(
+  request: FontTranspileBuildRequest,
+  exportFormat: 'ttf' | 'otf' = 'ttf'
+): Promise<StrokeBasedFontBuildOutput> {
+  const unitsPerEm = 1000;
+  const glyphs: Array<{ unicode: number; name: string; advanceWidth: number; path: opentype.Path }> = [];
+  
+  // Convert modulation params to SignalKernelParams
+  const signalParams: SignalKernelParams = {
+    carrierHz: request.modulation.carrierHz,
+    payloadHz: request.modulation.payloadHz,
+    amDepth: request.modulation.amDepth,
+    pmDepth: request.modulation.pmDepth,
+    resonanceQ: request.modulation.resonanceQ,
+    scalar: request.modulation.scalar,
+    bivector: request.modulation.bivector,
+    trivector: request.modulation.trivector,
+    magneticSaturation: request.modulation.magneticSaturation ?? 1.5,
+    ampereTension: request.modulation.ampereTension ?? 0.8,
+    symmetryOrder: request.modulation.symmetryOrder ?? 12,
+    radialLayers: request.modulation.radialLayers ?? 7
+  };
+  
+  // Generate each glyph using DSP-based stroke extraction
+  for (const char of request.chars) {
+    const charCode = char.charCodeAt(0);
+    const bounds = { xMin: 50, yMin: 100, xMax: 550, yMax: 900 };
+    const advanceWidth = unitsPerEm * 0.6;
+    
+    const path = buildGlyphPathFromDSP(signalParams, bounds, advanceWidth);
+    
+    glyphs.push({
+      unicode: charCode,
+      name: `uni${charCode.toString(16).toUpperCase().padStart(4, '0')}`,
+      advanceWidth,
+      path
+    });
+  }
+  
+  // Export options
+  const exportOptions: DspFontExportOptions = {
+    familyName: request.familyName,
+    styleName: request.styleName,
+    version: '1.0.0',
+    description: 'CYMAGYPH - DSP-generated sacred geometry font',
+    copyright: '© 2024 CYMAGYPH Project',
+    manufacturer: 'CYMAGYPH Generator',
+    designer: 'DSP Engine',
+    license: 'MIT',
+    embedSignalParams: true
+  };
+  
+  // Use font exporter
+  const result = exportFont(
+    glyphs,
+    exportOptions,
+    exportFormat,
+    signalParams
+  );
+  
+  // Create opentype font for validation
+  const font = new opentype.Font({
+    familyName: request.familyName,
+    styleName: request.styleName,
+    unitsPerEm,
+    ascender: Math.round(unitsPerEm * 0.8),
+    descender: -Math.round(unitsPerEm * 0.2),
+    glyphs: glyphs.map(g => new opentype.Glyph(g))
+  });
+  
+  // Validate for installation
+  const validation = validateFontForInstallation(font);
+  
+  return {
+    font,
+    buffer: result.buffer,
+    format: result.format,
+    fileName: result.fileName,
+    validation,
+    metadata: result.metadata
+  };
 }
