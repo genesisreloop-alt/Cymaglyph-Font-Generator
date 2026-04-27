@@ -88,6 +88,8 @@ export interface FontTranspileBuildRequest {
     scalar: number;
     bivector: number;
     trivector: number;
+    magneticSaturation?: number;
+    ampereTension?: number;
     sampleDensity: number;
     layerDensityFalloff: number;
     centerDensityBoost: number;
@@ -118,4 +120,23 @@ export interface FontTranspileBuildRequest {
     propagationMedium?: string;
   };
   monochrome: boolean;
+}
+
+// New interfaces for stroke-based font generation
+export interface StrokeGlyphPath {
+  closed: boolean;
+  points: Array<{ x: number; y: number }>;
+  innerContours?: StrokeGlyphPath[];
+}
+
+export interface DspFontExportOptions {
+  familyName: string;
+  styleName: string;
+  version?: string;
+  description?: string;
+  copyright?: string;
+  manufacturer?: string;
+  designer?: string;
+  license?: string;
+  embedSignalParams?: boolean;
 }
