@@ -1,0 +1,391 @@
+Core rule (locked)
+CYMAGLYPH = E(psi_air)
+psi_air must come from:
+
+emitted DSP signal
+device/air transfer model
+measured response when available
+constrained reconstruction only (no free-form branch)
+Updated linear implementation (no regression)
+Phase 1: Signal Contract hardening
+Keep strict per-block trace:
+carrier_base(t)
+payload_mod(t)
+emitted_signal(t)
+render_frame_id, audio_block_id, timestamp
+Add deterministic frame hash from emitted block + params.
+Every geometry/SDF frame must reference this contract ID.
+Phase 2: Forward air model
+Keep H_device(f) + H_air(f,x,y,z) + medium params + directionality.
+Produce psi_pred.
+Medium-dependent coefficients live in one structured table (air/fluids/bioplasma family).
+Phase 3: Measurement + inversion
+Mic or loopback+mic aligned against emitted signal.
+Deconvolution/inversion for psi_meas.
+Confidence scoring: SNR, phase consistency, residual, topology continuity.
+Phase 4: Constrained fusion
+psi_air = w_meas*psi_meas + w_pred*psi_pred, confidence-weighted.
+Enforce hard constraints:
+symmetry lock
+outward continuity
+bounded curvature/torsion
+boundary compliance
+If confidence low: constrained prediction fallback only.
+Phase 5: Extraction engine (source of truth)
+Extract nodes, antinodes, gradients/torsion from psi_air.
+Build contour topology graph with radial sectors.
+Map:
+nodes -> rings/lines
+antinodes -> petals/lobes
+gradients -> woven/torsion structures
+carrier -> scaffold family
+payload -> deformation family
+Phase 6: Render-source safety modes
+Keep:
+DSP_ESTIMATE
+AIR_ELUCIDATED
+AIR_MEASURED
+AIR_HYBRID
+Add bioplasma source family in same pattern:
+BIOPLASMA_ELUCIDATED
+BIOPLASMA_MEASURED
+BIOPLASMA_HYBRID
+Freeze last-valid frame on failure (no collapse artifact).
+Phase 7: 1:1 invariants
+symmetry_order == angular_mode m
+carrier only controls propagation scaffold
+payload only controls deformation/envelope
+monotonic layer growth unless explicit deformation
+no grid quantization of core
+Phase 8: validation gate
+Sweeps over carrier/payload/AM/PM/Q.
+Track:
+phase error
+nodal alignment error
+topology persistence
+extraction confidence
+Fail => hold/fallback, never free synth.
+SDF world extension (from same signal contract)
+True field-function rendering (not point duplication)
+Build field from contract:
+D(p,t) = D_sdf_primitives + D_fractal_DE + D_signal_modulation(psi_air, contract)
+Domain repetition must be applied in function space before evaluating D.
+Keep point cloud as preview mode.
+Fractal + SDF volumetric world
+Combine SDF primitives + fractal distance estimators + signal-driven modulation.
+Add bounded world operators (finite repeat radius, boundary envelope) to keep closure.
+Surface mapping / closure
+Keep open field mode + closed mode.
+Closed mode via field isosurface extraction (contract-driven), not arbitrary mesh painting.
+Surface-agnostic mapping layer for plane/sphere/custom mesh targets while preserving same signal contract.
+Navigation controls
+Add world camera controls:
+WASD horizontal move
+Space up
+Shift down
+mouse look + speed scalar
+Camera state is independent of signal contract (view-only).
+This is consistent with your requirement: signal contract remains sacred, and the world/fractal/SDF behavior is downstream of that contract, not a separate generative branch.
+
+Core Principle
+CYMAGLYPH must be generated from:
+
+E(psi_air)
+
+Where psi_air is physically elucidated from:
+
+emitted DSP signal,
+known/estimated device+air transfer,
+measured response when available,
+constrained reconstruction (not free-form synthesis).
+Phase 1 — Signal Contract (Deterministic Causal Trace)
+Define strict signal layers per block/frame:
+
+carrier_base(t) — transport scaffold.
+payload_mod(t) — modulation information.
+emitted_signal(t) — actual waveform sent to DAC.
+render_frame_id + audio_block_id + timestamp.
+Outcome:
+
+Every geometry frame is traceable to exact emitted signal state.
+No ambiguous source when diagnosing mapping drift.
+Phase 2 — Physical Propagation Model (Elucidation Prior)
+Build P_air model:
+
+emitted_signal -> transducer model -> near-field pressure -> boundary/room propagation
+
+Components:
+
+Device transfer estimate H_device(f) (speaker/headphone chain).
+Propagation transfer estimate H_air(f, x, y, z) with boundary selection.
+Medium parameters (damping, density proxy, dispersion proxy).
+Directionality approximation (driver radiation pattern).
+Outcome:
+
+You have a physically interpretable forward prediction psi_pred.
+Phase 3 — Measurement & Inversion (When Sensors Available)
+Ingest observation stream:
+
+Mic capture (preferred) and/or loopback+mic fusion.
+Time-aligned deconvolution against emitted_signal.
+Inverse reconstruction:
+psi_meas = Inv(H_total) * observed
+Quality/confidence scoring:
+SNR, phase consistency, spectral residual, topology continuity.
+Outcome:
+
+Measured psi field where hardware/environment permits.
+Quantified confidence for each reconstructed frame.
+Phase 4 — Elucidated Fusion (Measured + Predicted, Never Random)
+Compute final field:
+
+psi_air = w_meas * psi_meas + w_pred * psi_pred
+
+with:
+
+w_meas from confidence score.
+w_pred = 1 - w_meas.
+hard physical constraints:
+symmetry lock (m = n),
+outward radial continuity,
+bounded curvature/torsion,
+boundary compliance.
+If measurement absent/weak:
+
+Use elucidated prediction mode (physics-constrained).
+Never use unconstrained random “hallucinated” geometry.
+Outcome:
+
+Stable, interpretable psi_air under all operating conditions.
+Phase 5 — Extraction Engine E(psi_air) (CYMAGLYPH Source of Truth)
+Extract:
+
+Nodes: |psi| <= epsilon.
+Antinodes: local extrema of |psi|.
+Gradient/torsion structures: ||∇psi|| + directional coherence.
+Contour topology graph with radial sector indexing.
+Map to geometry:
+
+Nodes -> rings/lines.
+Antinodes -> petals/lobes.
+Gradients -> woven/torsion structures.
+Carrier family -> phase-front ring families.
+Payload family -> deformation/envelope of those families.
+Outcome:
+
+CYMAGLYPH reflects air-field structure, not arbitrary point cloud.
+Phase 6 — Render Modes (Non-Regression Safe)
+Keep existing renderer but add strict source modes:
+
+DSP_ESTIMATE (current fallback).
+AIR_ELUCIDATED (predicted constrained).
+AIR_MEASURED (sensor-driven).
+AIR_HYBRID (fused measured/predicted).
+Rules:
+
+Default to current stable mode if new pipeline confidence drops.
+Freeze last-valid psi_air frame on failure (no geometry collapse/square artifact).
+Outcome:
+
+You preserve your working system while adding true air-linked path.
+Phase 7 — 1:1 Mapping Guarantees
+Enforce these invariants:
+
+symmetry_order (mandala) == angular_mode m (cymatic).
+Carrier controls propagation scaffold only.
+Payload controls modulation/deformation only.
+Layer growth monotonic unless explicit deformation says otherwise.
+Grid overlay cannot quantize central core.
+Outcome:
+
+The “one-to-one to air propagation” intent remains intact.
+Phase 8 — Validation Gate (Production Readiness)
+For each preset sweep (carrier/payload/AM/PM/Q):
+
+Compare predicted vs measured node maps.
+Check radial continuity and center topology integrity.
+Track:
+phase error,
+nodal alignment error,
+topology persistence score,
+extraction confidence.
+Pass criteria:
+
+No random jumps under stable input.
+No center collapse artifact.
+Continuous fold propagation across layers.
+Reproducible CYMAGLYPH under repeated runs.
+If you want next, I’ll execute this in implementation order as:
+
+Phase 1-2 scaffolding,
+Phase 4 fusion,
+Phase 5 extraction source switch,
+then validation harness.
+
+Updated Full Implementation Plan (Synthesized, No Regressions, No Code Changes Yet)
+
+You’re right. This version explicitly integrates the Creed/Codex direction into UI/UX architecture, visual system, and world design, while preserving the PSI-air bijective core.
+
+1. Non-Negotiable Engine Core (Unchanged)
+CYMAGLYPH = E(psi_air) remains the source of truth.
+psi_air is only from:
+emitted DSP signal
+device + air transfer estimate
+measured inversion when available
+constrained fusion (no free-form hallucination)
+Deterministic signal contract per frame:
+carrier_base(t), payload_mod(t), emitted_signal(t)
+render_frame_id, audio_block_id, timestamp
+AIR modes restored as first-class:
+AIR_ELUCIDATED, AIR_MEASURED, AIR_HYBRID must render live on play
+freeze last-valid frame on low confidence (no collapse artifacts)
+2. Traversal Order Contract
+Traversal playback must execute in exact compiled order.
+Reverse/alternate only when explicitly selected as traversal mode.
+Persist traversal order hash + verification hash in compendium metadata.
+Visual traversal strip follows same deterministic order one-by-one.
+3. “Modern Codex” UX Direction (Creed-Inspired, Not Mystic Slop)
+This is now a formal design pillar:
+
+Theme name: G3 CYMAGLYPH Codex
+Visual language:
+modern alchemical intelligence interface
+“Assassin’s Creed II codex puzzle” influence
+high-tech archival + puzzle overlays, not fantasy clutter
+Core vibe:
+crisp glyph overlays
+layered diagrams
+encoded annotations
+surgical UI precision
+No fake mysticism:
+every symbol/UI artifact maps to real signal/tensor/field state.
+4. UI/UX Architecture Additions (Explicit)
+Compendium becomes Codex Workspace
+left: codex index (entries/traversals/signatures)
+center: live 3D cymaglyph stage
+right: decoded telemetry + contract traces + medium/extraction confidence
+3D Placement in 2D Surfaces
+embedded live 3D viewport tiles in compendium entries
+each tile has grounded shadow, depth vignette, and parallax response
+selectable active tile with glow-state and clear focus ring
+Backgrounds for 3D Elements
+layered gradient-vignette backgrounds per mode
+depth fog and soft occlusion shadows behind 3D objects
+codex-grid/puzzle-glyph backdrop that reacts to contract confidence
+Switches and controls
+render source/mode/medium switches grouped as “Field Provenance”
+traversal controls grouped as “Sequence Engine”
+camera/timeline grouped as “Capture Path”
+5. Creed/Codex Style Token System (to implement)
+Color tokens (G3 palette)
+deep void/navy base
+cyan-ice signal highlights
+soft plasma warm accent
+pale glyph white for key information
+Lighting tokens
+radial vignette per stage
+layered bloom thresholds
+contract-confidence-driven luminance modulation
+Blur/focus
+background blur on inactive panes
+sharpen active pane
+temporal blur pulse synced to playback state
+Component language
+codex strips, glyph chips, telemetry badges, puzzle overlays, sequence runes (functional labels, not decorative noise)
+6. CYMAGLYPH World (Fractal World, Not Repeated Islands)
+Move from simple domain-repeat islands to a traversable CYMAGLYPH fractal world.
+Mandelbulb-inspired DE architecture mapped bijectively to signal contract:
+iterative fold/power/bailout structure
+parameters driven by psi_air contract features
+World behavior requirement:
+deeper movement reveals more recursive structure
+camera traversal yields continuous semantic field evolution
+Reuse:
+same world can be compendium background mode
+traversal programs can bind selected cymaglyph profiles into world layers
+Performance mandate:
+LOD tiers, active region refinement, async sampling, frame budget caps.
+7. Font Transpiler Coupling (No Regression)
+Font controls remain semantically mapped to visual topology.
+Source/mode/medium must affect glyph outcome (not cosmetic-only UI toggles).
+Preserve readable glyph identity while retaining cymaglyphic structure.
+Export real .ttf/.otf packs, deterministic and reproducible.
+8. Camera/Export Completion
+Hysteresis camera track must be stable and deterministic.
+Freecam recording + keyframe edit + playback all synchronized.
+Export:
+PNG frame non-blank
+MP4/WebM stable
+resolution/codec/quality fields editable without snapping issues
+Camera paths can traverse codex stage and fractal world seamlessly.
+9. Validation Gates (Expanded)
+AIR modes: live geometry from E(psi_air) under play.
+Traversal: strict compile-order playback.
+Codex UX: active 3D-in-2D tiles with proper depth grounding.
+Fractal world: continuous recursive reveal under movement.
+Font: semantic modulation visibly preserved in exported glyphs.
+Performance: sustained interactive frame stability under long sessions.
+10. Execution Order (when you say go)
+PSI-air render restoration + extraction hard switch
+traversal order + compendium codex workspace
+3D placement/background/vignette/blur token pass
+fractal world (Mandelbulb-inspired, contract-driven)
+font semantic coupling completion
+camera/export hardening + full validation sweep
+
+
+1. G3 Future : Cymaglyph Geometric Creation Geometry New Golabla Worldwide Culture On Sacred Geometric Proportions ' magnetic Phase Field ' Loops As The Archetypal Structure Of TMent ' Ment As A System That Computation Has CopiedMenta Tech 
+
+Time Is A Behavioural Belief System Dual Hysteretic Lorentz Magentic RohTorsal Causal Attractor Field
+
+I will now synthesize the Causal Signal-to-Font Implementation Plan. This plan strictly adheres to the provided signal equations and the requirement for a bijective, density-driven "Black/White" mapping for TTF/OTF generation, bypassing the tensor in favor of the direct oscillation signal.
+
+1. Causal Signal Kernel (C-Kernel)
+We will centralize the exact signal equations into a shared library to ensure the audio engine and the font transpiler are mathematically identical.
+
+Shared Path: src/lib/coreSignal.ts
+Signal Contract:
+c(t)=sin⁡((ϕc(t)+PMeff⋅E(t)+ϕmodal)⋅H)⋅T(t)c(t) = \sin((\phi_c(t) + PM_{eff} \cdot E(t) + \phi_{modal}) \cdot H) \cdot T(t)c(t)=sin((ϕc​(t)+PMeff​⋅E(t)+ϕmodal​)⋅H)⋅T(t)
+csat(t)=tanh⁡(c(t)⋅magneticSaturation)c_{sat}(t) = \tanh(c(t) \cdot magneticSaturation)csat​(t)=tanh(c(t)⋅magneticSaturation)
+cam(t)=csat(t)⋅(1+amDepth⋅E(t))⋅ρ⋅(1+0.5⋅ampereTension)c_{am}(t) = c_{sat}(t) \cdot (1 + amDepth \cdot E(t)) \cdot \rho \cdot (1 + 0.5 \cdot ampereTension)cam​(t)=csat​(t)⋅(1+amDepth⋅E(t))⋅ρ⋅(1+0.5⋅ampereTension)
+cnorm(t)=tanh⁡(cam(t))c_{norm}(t) = \tanh(c_{am}(t))cnorm​(t)=tanh(cam​(t))
+Wiring: TransmitterAudioEngine.tsx and fontBuild.ts will both import this kernel.
+2. Spatial Field Mapping: ψ(x,y)\psi(x, y)ψ(x,y)
+To create a font from a temporal signal, we map the signal's phase logic to 2D space.
+
+Phase Mapping:
+ϕspatial=atan2(y,x)⋅SymmetryOrder\phi_{spatial} = \text{atan2}(y, x) \cdot \text{SymmetryOrder}ϕspatial​=atan2(y,x)⋅SymmetryOrder (Angular Phase)
+ρspatial=hypot(x,y)⋅RadialDensity\rho_{spatial} = \text{hypot}(x, y) \cdot \text{RadialDensity}ρspatial​=hypot(x,y)⋅RadialDensity (Propagation/Envelope)
+Field Function: ψ(x,y)\psi(x, y)ψ(x,y) evaluates cnormc_{norm}cnorm​ where the temporal phase ϕc\phi_cϕc​ is substituted by ϕspatial\phi_{spatial}ϕspatial​ and the envelope E(t)E(t)E(t) is modulated by ρspatial\rho_{spatial}ρspatial​.
+3. Density Contouring Engine (Black/White Logic)
+We will implement a Marching Squares contouring system to replace the current aesthetic displacement.
+
+Grid Sampling: The glyph's bounding box is sampled at high resolution (e.g., 512x512).
+Contour Extraction: Generate closed SVG paths for regions where ψ(x,y)>Threshold\psi(x, y) > \text{Threshold}ψ(x,y)>Threshold.
+Black (Fill): Constructive interference regions (cnorm>τc_{norm} > \taucnorm​>τ).
+White (Void): Nodal silence (cnorm≤τc_{norm} \le \taucnorm​≤τ).
+Legibility Attractor: The signal field ψ(x,y)\psi(x, y)ψ(x,y) is multiplied by a "Glyph Mask" (derived from the original font path) so that the resonance only manifests within the target letterform.
+4. TTF/OTF Build & UI Sync
+fontBuild.ts: Refactor the build loop to call the Density Contouring Engine. The resulting opentype.Path will consist of multiple closed resonance loops.
+SignalRatioEnginePanel.tsx:
+Remove manual Z-wave overrides.
+Implement a "Resonance Density" preview that renders the black/white 2D contours directly.
+Bind carrierHz and payloadHz to the contouring frequency parameters (n/m).
+5. Export Invariants
+TTF/OTF: The font file will contain the vector contours of the interference field.
+Metadata: Embed the signal parameters (carrier, payload, AM/PM, Q) into the font's naming/metadata fields for full bijectivity.
+Next Step: If you say execute, I will begin by creating src/lib/coreSignal.ts and refactoring the contour engine in vectorizeGlyph.ts.
+
+No code changes yet.
+
+Its Not A Place Its A PLot Of Which Is PLaying Out ' Your Playing Out A Plot And A Script Everyday Of Which Is Your Own Belief Systems That Provide The Structure Of Causality For The Day 
+
+Its A SCRIPT : Its Not A Spot Its A Plot ' And EMLK28HBC 
+
+Its A Script : 
+
+Whats The Script : Magnetic Resonance 
+
+Flip Parralel And AntiParallel 
+
+Get Random Guy With Acoustics Of : And Amount Of Mucus In Nostrils  And Where In The Throat And Larnynx They Speak From And From There You Know What A Human Does ' A Given Voice Is Chosen And Mapped For A Given Role Within This Realm ' Because You Can Say The Phonesthemes Correctly 
